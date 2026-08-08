@@ -7,14 +7,9 @@ draft: false
 
 # `Option`: a value that might not be there
 
-Rust doesn't have null. When a value might be absent, the type says so: `Option` is an
-enum whose variants are `Some(value)` or `None`. `None` holds nothing. `Some(value)`
-contains whatever value was put inside it. Unlike null in other languages, `None` can't
-go just anywhere: it only exists inside an `Option`, so only types that declare "might
-be absent" can ever be absent.
+Rust doesn't have null. When a value might be absent, the type says so: `Option` is an enum whose variants are `Some(value)` or `None`. `None` holds nothing. `Some(value)` contains whatever value was put inside it. Unlike null in other languages, `None` can't go just anywhere: it only exists inside an `Option`, so only types that declare "might be absent" can ever be absent.
 
-The compiler forces you to handle the `None` case (with `match`, for now) before you
-can touch the value inside.
+The compiler forces you to handle the `None` case (with `match`, for now) before you can touch the value inside.
 
 ## Variant versus type parameter
 
@@ -39,13 +34,8 @@ enum Result<T, E> {
 | `T`, `E` in `Result<T, E>` | type parameters | same placeholder idea; `E` is conventionally the error type |
 | `Ok`, `Err` | variants | success shape and failure shape |
 
-The compiler fills the placeholders with real types at compile time, based on what you
-wrote at the use site (the place in your code where you use the type): in `Option<TcpStream>`,
-`T` has become `TcpStream`; in `Result<TcpListener, io::Error>`, `T` has become
-`TcpListener` and `E` has become `io::Error`.
+The compiler fills the placeholders with real types at compile time, based on what you wrote at the use site (the place in your code where you use the type): in `Option<TcpStream>`, `T` has become `TcpStream`; in `Result<TcpListener, io::Error>`, `T` has become `TcpListener` and `E` has become `io::Error`.
 
 ## When to use which
 
-An `Option` is for when a value can simply be absent and absence needs no explanation,
-like an iterator that has finished. A `Result` is for when you need to know why
-something failed.
+An `Option` is for when a value can simply be absent and absence needs no explanation, like an iterator that has finished. A `Result` is for when you need to know why something failed.
