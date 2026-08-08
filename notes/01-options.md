@@ -2,7 +2,7 @@
 title: Option, a Value That Might Not Be There
 date: 2026-07-31
 description: Rust has no null. `Option<T>` is either `Some(value)` holding a value or `None` holding nothing, and the compiler makes you handle the `None` case before you can touch the value.
-draft: false
+draft: true
 ---
 
 # `Option`: a value that might not be there
