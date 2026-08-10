@@ -1,5 +1,5 @@
 use std::net::{TcpListener, TcpStream};
-use std::io;
+use std::io::{self, Read, BufReader};
 
 
 fn main() -> io::Result<()>{
@@ -16,5 +16,10 @@ fn main() -> io::Result<()>{
 }
 
 fn handle_connection(stream: TcpStream){
-  println!("connection established")
+  let mut reader = BufReader::new(stream);
+  let mut buffer = [0u8; 512];
+  match reader.read(&mut buffer){
+    Ok(n) => println!("read {n} bytes"),
+    Err(e) => eprintln!("read failed: {e}"),
+  }
 }
