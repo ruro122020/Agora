@@ -17,9 +17,29 @@ fn main() -> io::Result<()>{
 
 fn handle_connection(stream: TcpStream){
   let mut reader = BufReader::new(stream);
+  let mut request: Vec<u8> = Vec::new();
   let mut buffer = [0u8; 512];
-  match reader.read(&mut buffer){
-    Ok(n) => println!("read {n} bytes"),
-    Err(e) => eprintln!("read failed: {e}"),
+  loop {
+    match reader.read(&mut buffer){
+        Ok(0) => {
+            eprintln!("client disconnected before finishing the request");
+            return;
+        }
+        Ok(n) => {
+            println!("read {n} bytes");
+            request.extend_from_slice(&buffer[..n]);
+            if request.ends_with(b"\r\n\r\n"){
+                break;
+            }
+        }
+        Err(e) => {
+            eprintln!("read failed: {e}");
+            return;
+        }
+    }
   }
+  let text = String::from_utf8_lossy(&request);
+  println!("{text}");
+  println!("request complete: {} bytes", request.len());
+
 }
