@@ -1,5 +1,5 @@
 use std::net::{TcpListener, TcpStream};
-use std::io::{self, Read, BufReader};
+use std::io::{self, Read, Write, BufReader};
 
 
 fn main() -> io::Result<()>{
@@ -38,8 +38,10 @@ fn handle_connection(stream: TcpStream){
         }
     }
   }
-  let text = String::from_utf8_lossy(&request);
-  println!("{text}");
   println!("request complete: {} bytes", request.len());
-
+  let response = "HTTP/1.1 200 OK\r\n\r\n";
+  match reader.get_mut().write(response.as_bytes()){
+    Ok(n) => println!("wrote {n} bytes"),
+    Err(e) => eprintln!("write failed: {e}"),
+  }
 }
