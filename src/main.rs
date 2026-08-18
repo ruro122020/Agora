@@ -83,3 +83,37 @@ fn fetch_api(path: &str) -> io::Result<String>{
   };
   Ok(body)
 }
+
+fn request_path(request:&[u8]) -> String {
+  let text = String::from_utf8_lossy(request);
+  let first_line = text.lines().next().unwrap_or("");
+  let path = first_line.split_whitespace().nth(1).unwrap_or("/");
+  path.to_string()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn empty_input_falls_back_to_root(){
+    assert_eq!(request_path(b""), "/");
+  }
+
+  #[test]
+  fn missing_path_falls_back_to_root(){
+    assert_eq!(request_path(b"GET\r\n\r\n"), "/");
+  }
+
+  #[test]
+  fn invalid_utf8_does_not_panic(){
+    let request = b"GET /\xFF\xFE HTTP/1.1\r\n\r\n";
+    assert_eq!(request_path(request), "/\u{FFFD}\u{FFFD}");
+  }
+  
+  #[test]
+  fn request_path_extracts_the_path(){
+    let request = b"GET /on HTTP/1.1\r\nHost: x\r\n\r\n";
+    assert_eq!(request_path(request), "/on");
+  }
+}
