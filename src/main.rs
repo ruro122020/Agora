@@ -1,13 +1,14 @@
 use std::net::{TcpListener, TcpStream};
 use std::io::{self, Read, Write, BufReader};
 use std::fs;
+use std::thread;
 
 fn main() -> io::Result<()>{
   let listener = TcpListener::bind("127.0.0.1:7878")?;
   for stream in listener.incoming() {
     match stream {
       Ok(stream) => {
-        handle_connection(stream);
+        thread::spawn(move || handle_connection(stream));
       }
       Err(error) => eprintln!("connection failed: {error}"),
     }
