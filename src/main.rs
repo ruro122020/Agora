@@ -64,9 +64,13 @@ fn read_request(reader:&mut BufReader<TcpStream>) -> io::Result<Vec<u8>> {
 
 fn build_response(path: &str) -> io::Result<String>{
   let result = match path {
+    "/" => fetch_api("GET", "/health"),
     "/on" => fetch_api("POST", "/on"),
     "/off" => fetch_api("POST", "/off"),
-    _ => fetch_api("GET", "/health"),
+    _ => {
+      let body = "404 Not Found";
+      return Ok(format!("HTTP/1.1 404 Not Found\r\nContent-Length: {}\r\n\r\n{}", body.len(), body));
+    },
   };
   let status = match result {
     Ok(body) => body,
