@@ -5,7 +5,7 @@ description: A closure is like a sealed box holding instructions plus the values
 draft: false
 ---
 
-When I was implementing the ThreadPool in my web server, I found it difficult to understand closures in Rust so now I want to write about it. 
+When I was implementing the ThreadPool in my [web server](https://github.com/ruro122020/Agora), I found it difficult to understand closures in Rust so now I want to write about it. 
 
 My ThreadPool creates 4 threads that sit waiting. The execute method puts a job on a queue, and the first free thread takes the job and runs it.
 
