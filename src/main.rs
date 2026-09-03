@@ -1,14 +1,17 @@
 use std::net::{TcpListener, TcpStream};
 use std::io::{self, Read, Write, BufReader};
 use std::fs;
-use std::thread;
+
+mod thread_pool;
+use thread_pool::ThreadPool;
 
 fn main() -> io::Result<()>{
   let listener = TcpListener::bind("127.0.0.1:7878")?;
+  let pool = ThreadPool::new(4);
   for stream in listener.incoming() {
     match stream {
       Ok(stream) => {
-        thread::spawn(move || handle_connection(stream));
+        pool.execute(move || handle_connection(stream));
       }
       Err(error) => eprintln!("connection failed: {error}"),
     }
