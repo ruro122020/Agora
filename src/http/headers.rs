@@ -1,8 +1,5 @@
 use super::ParseError;
 
-/// Header lines in arrival order. Names compare case-insensitively
-/// (RFC 9110 section 5.1), and a name may repeat, so this is a list and not a
-/// map.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Headers {
     entries: Vec<(String, String)>,
@@ -24,8 +21,6 @@ impl Headers {
             .map(|(_, v)| v.as_str())
     }
 
-    /// True when any comma-separated element of any `name` header equals
-    /// `token`, ignoring case. `Connection: keep-alive, Upgrade` has two.
     pub fn has_token(&self, name: &str, token: &str) -> bool {
         self.get_all(name)
             .flat_map(|value| value.split(','))
@@ -44,7 +39,6 @@ impl Headers {
         self.entries.iter().map(|(n, v)| (n.as_str(), v.as_str()))
     }
 
-    /// Parses one header line (CRLF already removed) and appends it.
     pub(crate) fn push_line(&mut self, line: &[u8]) -> Result<(), ParseError> {
         let colon = line
             .iter()
@@ -52,22 +46,16 @@ impl Headers {
             .ok_or(ParseError::MalformedHeader)?;
         let (name, value) = (&line[..colon], &line[colon + 1..]);
 
-        // Whitespace around the name is how two parsers come to disagree on
-        // which header this is, so RFC 9112 section 5.1 makes it a hard 400.
-        // A line starting with whitespace (obsolete line folding) lands here.
         if name.iter().any(|&b| b == b' ' || b == b'\t') {
             return Err(ParseError::HeaderNameHasWhitespace);
         }
         if name.is_empty() || !name.iter().all(|&b| is_token_byte(b)) {
             return Err(ParseError::MalformedHeader);
         }
-        // Control bytes in a value (a bare CR above all) are rejected; a tab
-        // is the one exception the grammar allows.
         if value.iter().any(|&b| (b < 0x20 && b != b'\t') || b == 0x7f) {
             return Err(ParseError::MalformedHeader);
         }
 
-        // Token bytes are ASCII, so this conversion cannot replace anything.
         let name = String::from_utf8_lossy(name).into_owned();
         let value = String::from_utf8_lossy(value)
             .trim_matches([' ', '\t'])
@@ -77,7 +65,6 @@ impl Headers {
     }
 }
 
-/// `tchar` from RFC 9110 section 5.6.2.
 fn is_token_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b"!#$%&'*+-.^_`|~".contains(&b)
 }

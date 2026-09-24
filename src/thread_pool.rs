@@ -8,8 +8,6 @@ type Job = Box<dyn FnOnce() + Send + 'static>;
 
 pub struct ThreadPool {
     workers: Vec<Worker>,
-    // `Option` so that `Drop` can take the sender out and drop it, which is
-    // what makes every worker's `recv` return `Err` and leave its loop.
     sender: Option<Sender<Job>>,
 }
 
@@ -73,9 +71,6 @@ impl Worker {
 
     fn run(id: usize, receiver: &Mutex<Receiver<Job>>) {
         loop {
-            // The lock guard is a temporary of this `let` statement, so it is
-            // dropped at the `;`, before the job runs. Holding it across the
-            // job would let only one worker work at a time.
             let message = receiver
                 .lock()
                 .unwrap_or_else(PoisonError::into_inner)

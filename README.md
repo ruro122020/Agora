@@ -24,9 +24,20 @@ handling, traits, and async (asynchronous) programming.
 
 ## Current status
 
-Early scaffold. Right now the project is a fresh Cargo binary: `main.rs` prints
-`Hello, world!` and there are no dependencies yet. The web server itself is
-still to be built.
+A working blocking HTTP/1.1 server on `std::net`, with zero dependencies:
+
+- Request parsing into typed values (`Method`, `Request`, `ParseError`), with
+  hostile input returning an error status instead of crashing a thread
+- Body framing per RFC 9112 section 6.3: `Content-Length`, chunked bodies, and
+  rejection of requests that carry both (request smuggling)
+- Limits and timeouts on everything a client controls: request line, header
+  count and size, body size, read and write waits, requests per connection
+- Keep-alive, `HEAD`, `Expect: 100-continue`, `404` and `405` with `Allow`
+- A router mapping (method, path) to a handler closure
+- A hand-built fixed-size thread pool that survives panicking handlers
+
+It listens on `127.0.0.1:7878` and serves `dist/hello.html`, filled in with the
+reply of an API expected on `127.0.0.1:3000`.
 
 ## Getting started
 
@@ -44,34 +55,44 @@ cargo run
 cargo check
 
 # Lint and format
-cargo clippy
+cargo clippy -- -D warnings
 cargo fmt
+
+# Unit and integration tests
+cargo test
+
+# With the server running, in a second shell
+curl -v http://127.0.0.1:7878/
 ```
 
 ## Planned direction
 
-Rough order of what this project will grow into:
+- Write an `epoll` event loop by hand, then port to `tokio`, so the async
+  runtime reads as that loop generalized instead of as a black box
+- Deploy the server on a Raspberry Pi running Linux
 
-- A server that listens on a TCP port and responds to a basic HTTP request
-- Routing: mapping a URL path
-- Deploying the server on a Raspberry Pi running Linux
-
-The exact crates are not chosen yet. Since this is a web server, the likely building blocks live at the HTTP and networking layer:
-**`hyper`** (a low-level HTTP implementation), **`tokio`** (the async runtime it
-runs on), **`tower`/`tower-http`** (service and middleware pieces such as static
-file serving), and **`pingora`** (a toolkit for HTTP servers and reverse
-proxies). Going straight to the standard library's **`std::net`** is also an
-option for maximum learning with zero dependencies. The choice will be made deliberately,
-weighing learning value and trade-offs rather than defaulting to the most
-popular option.
+`hyper`, `tower` and `pingora` were considered and rejected: they hand over an
+already-parsed request, which hides the accept loop, the buffering, and the
+parsing that this project exists to understand. The reasoning is in
+`CLAUDE.md` under "What We Are Building".
 
 ## Project layout
 
 ```
 Agora/
-├── Cargo.toml      # Package manifest: metadata + dependencies
-├── Cargo.lock      # Exact resolved dependency versions
+├── Cargo.toml
+├── dist/hello.html      # the page served at /
 ├── src/
-│   └── main.rs     # Entry point (currently "Hello, world!")
-└── README.md       # This file
+│   ├── main.rs          # binary: bind the port, register routes, run
+│   ├── lib.rs           # library root
+│   ├── server.rs        # accept loop handing connections to the pool
+│   ├── conn.rs          # one connection: timeouts, keep-alive loop, error to status
+│   ├── limits.rs        # ServerLimits
+│   ├── error.rs         # ServerError
+│   ├── router.rs        # (method, path) to handler
+│   ├── thread_pool.rs   # fixed-size worker pool
+│   └── http/            # Method, StatusCode, Headers, BodyLength, Request, Response, ParseError
+├── tests/server.rs      # end-to-end tests over real sockets
+├── notes/               # one note per concept learned
+└── tasks/               # todo.md (plan and progress), design.md, lessons.md
 ```

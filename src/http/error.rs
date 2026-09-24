@@ -8,13 +8,10 @@ pub enum ParseError {
     UnknownMethod,
     InvalidTarget,
     UnsupportedVersion,
-    /// A line ended in a bare LF, or a chunk was not followed by CRLF.
     MissingCrlf,
     MalformedHeader,
     HeaderNameHasWhitespace,
-    /// RFC 9112 section 3.2: an HTTP/1.1 request must carry exactly one Host.
     MissingHost,
-    /// RFC 9112 section 6.3 rule 3: `Content-Length` with `Transfer-Encoding`.
     ConflictingFraming,
     InvalidContentLength,
     UnsupportedTransferEncoding,

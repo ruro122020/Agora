@@ -1,9 +1,5 @@
 use crate::http::{Method, Request, Response, StatusCode};
 
-/// `dyn Fn` and not a generic parameter: every closure has its own anonymous
-/// type, and a `Vec` holds one type, so the closures are boxed and called
-/// through a vtable (a table of function pointers stored next to the data).
-/// `Send + Sync` is what lets one `Router` be shared by every worker thread.
 type Handler = Box<dyn Fn(&Request) -> Response + Send + Sync>;
 
 #[derive(Default)]
@@ -16,8 +12,6 @@ impl Router {
         Router::default()
     }
 
-    /// Registers `handler` for an exact `path`. The query string is not part
-    /// of the match.
     pub fn route<H>(mut self, method: Method, path: &str, handler: H) -> Router
     where
         H: Fn(&Request) -> Response + Send + Sync + 'static,
@@ -36,8 +30,6 @@ impl Router {
                 .map(|(_, _, handler)| handler)
         };
 
-        // `HEAD` is `GET` without the body (RFC 9110 section 9.3.2). The
-        // connection layer drops the body bytes when it writes the response.
         let handler = find(request.method()).or_else(|| match request.method() {
             Method::Head => find(Method::Get),
             _ => None,

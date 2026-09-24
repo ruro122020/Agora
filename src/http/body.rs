@@ -5,19 +5,12 @@ use super::{Headers, ParseError};
 use crate::error::ServerError;
 use crate::limits::ServerLimits;
 
-/// Longest chunk-size line accepted, extensions included.
 const MAX_CHUNK_LINE: usize = 1024;
 
-/// How the end of the request body is found. RFC 9112 section 6.3 is decided
-/// once, here; nothing downstream looks at the raw framing headers again.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BodyLength {
-    /// Neither framing header: the request has no body (rule 7).
     Empty,
-    /// A valid `Content-Length` (rule 6). `Fixed(0)` is an empty body, which
-    /// is a different statement from "no body".
     Fixed(usize),
-    /// `Transfer-Encoding: chunked` (rule 4).
     Chunked,
 }
 
@@ -26,10 +19,6 @@ impl BodyLength {
         let chunked = headers.get_all("transfer-encoding").next().is_some();
         let sized = headers.get_all("content-length").next().is_some();
 
-        // Rule 3. If a proxy in front frames by one header and this server by
-        // the other, they disagree on where the request ends, and the
-        // leftover bytes get treated as a second request the proxy never saw
-        // (request smuggling). Reject instead of choosing.
         if chunked && sized {
             return Err(ParseError::ConflictingFraming);
         }
@@ -46,7 +35,6 @@ impl BodyLength {
             };
         }
         if sized {
-            // Rule 5: several values are tolerated only if they all agree.
             let mut length = None;
             for element in headers
                 .get_all("content-length")
@@ -65,8 +53,6 @@ impl BodyLength {
         Ok(BodyLength::Empty)
     }
 
-    /// Reads the body this framing describes, leaving the reader positioned
-    /// at the first byte of the next request.
     pub(crate) fn read<R: BufRead>(
         self,
         reader: &mut R,
@@ -75,7 +61,6 @@ impl BodyLength {
         match self {
             BodyLength::Empty => Ok(Vec::new()),
             BodyLength::Fixed(n) => {
-                // Checked before allocating: the length is attacker-chosen.
                 if n > limits.max_body {
                     return Err(ParseError::BodyTooLarge.into());
                 }
@@ -88,8 +73,6 @@ impl BodyLength {
     }
 }
 
-/// `str::parse::<usize>` also accepts a leading `+`, which the grammar
-/// (`1*DIGIT`) does not, so the digits are checked first.
 fn parse_decimal(text: &str) -> Result<usize, ParseError> {
     if text.is_empty() || !text.bytes().all(|b| b.is_ascii_digit()) {
         return Err(ParseError::InvalidContentLength);
@@ -120,7 +103,6 @@ fn read_chunked<R: BufRead>(reader: &mut R, limits: &ServerLimits) -> Result<Vec
         }
     }
 
-    // Trailer fields: read up to the blank line and discard them.
     let mut remaining = limits.max_header_bytes;
     loop {
         let line = read_line(reader, remaining, ParseError::HeadersTooLarge)?;
@@ -131,7 +113,6 @@ fn read_chunked<R: BufRead>(reader: &mut R, limits: &ServerLimits) -> Result<Vec
     }
 }
 
-/// The size is hex, optionally followed by `;extension` text that is ignored.
 fn parse_chunk_size(line: &[u8]) -> Result<usize, ParseError> {
     let digits = line.split(|&b| b == b';').next().unwrap_or(&[]);
     let digits = std::str::from_utf8(digits)
@@ -140,7 +121,6 @@ fn parse_chunk_size(line: &[u8]) -> Result<usize, ParseError> {
     if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_hexdigit()) {
         return Err(ParseError::MalformedChunk);
     }
-    // Overflow means a size no real body has; report it as too large.
     usize::from_str_radix(digits, 16).map_err(|_| ParseError::BodyTooLarge)
 }
 

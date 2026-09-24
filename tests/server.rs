@@ -1,6 +1,3 @@
-//! End-to-end tests: a real server on a port the kernel picks (port 0), and a
-//! raw `TcpStream` as the client so the bytes on the wire are what is tested.
-
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::thread;
@@ -21,7 +18,6 @@ fn start(limits: ServerLimits) -> SocketAddr {
         .route(Method::Get, "/panic", |_| {
             panic!("handler failure under test")
         });
-    // The thread is never joined: `run` loops until the test process exits.
     thread::spawn(move || server::run(listener, router, limits, 2));
     addr
 }
@@ -34,7 +30,6 @@ fn connect(addr: SocketAddr) -> TcpStream {
     stream
 }
 
-/// Sends `request`, then reads until the server closes the connection.
 fn exchange(addr: SocketAddr, request: &[u8]) -> String {
     let mut stream = connect(addr);
     stream.write_all(request).unwrap();
@@ -43,7 +38,6 @@ fn exchange(addr: SocketAddr, request: &[u8]) -> String {
     String::from_utf8_lossy(&response).into_owned()
 }
 
-/// Reads exactly one response with a `Content-Length` off a kept-open stream.
 fn read_response(stream: &mut TcpStream) -> String {
     let mut bytes = Vec::new();
     let mut byte = [0];
@@ -163,7 +157,6 @@ fn post_with_fixed_and_chunked_bodies() {
     );
     assert!(response.ends_with("\r\n\r\nfixed"), "{response}");
 
-    // Sent in pieces so a chunk-size line and chunk data cross read calls.
     let mut stream = connect(addr);
     for piece in [
         &b"POST /echo HTTP/1.1\r\nHost: x\r\nConnection: close\r\nTransfer-Encoding: chunked\r\n\r\n4"[..],
@@ -199,7 +192,6 @@ fn expect_continue_is_answered_before_the_body() {
 #[test]
 fn smuggling_attempt_gets_400_and_a_closed_socket() {
     let addr = start(ServerLimits::default());
-    // `exchange` returning at all proves the server closed the connection.
     let response = exchange(
         addr,
         b"POST /echo HTTP/1.1\r\nHost: x\r\nContent-Length: 3\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\nGET / HTTP/1.1\r\nHost: x\r\n\r\n",
@@ -267,8 +259,6 @@ fn client_that_stalls_mid_request_gets_408() {
 #[test]
 fn panicking_handler_is_500_and_the_worker_survives() {
     let addr = start(ServerLimits::default());
-    // More panics than workers: if a panic killed its worker, the pool of two
-    // would be empty and the final request would hang.
     for _ in 0..3 {
         let response = exchange(
             addr,
@@ -286,7 +276,6 @@ fn panicking_handler_is_500_and_the_worker_survives() {
 #[test]
 fn slow_client_does_not_block_the_others() {
     let addr = start(ServerLimits::default());
-    // One worker of two is parked reading this unfinished request.
     let mut slow = connect(addr);
     slow.write_all(b"GET / HTTP/1.1\r\n").unwrap();
     let started = Instant::now();

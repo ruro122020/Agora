@@ -14,7 +14,6 @@ pub enum Method {
 }
 
 impl Method {
-    /// Methods are case-sensitive (RFC 9110 section 9.1), so `get` is unknown.
     pub fn parse(token: &[u8]) -> Result<Method, ParseError> {
         match token {
             b"GET" => Ok(Method::Get),
@@ -24,8 +23,6 @@ impl Method {
             b"DELETE" => Ok(Method::Delete),
             b"OPTIONS" => Ok(Method::Options),
             b"PATCH" => Ok(Method::Patch),
-            // Looks like a method we do not implement: 501. Anything else is
-            // not a method at all (binary noise, a TLS handshake): 400.
             _ if !token.is_empty() && token.iter().all(u8::is_ascii_uppercase) => {
                 Err(ParseError::UnknownMethod)
             }

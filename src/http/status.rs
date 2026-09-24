@@ -1,9 +1,5 @@
 use std::fmt;
 
-/// A status code that is known to be in `100..=599`.
-///
-/// The field is private, so `StatusCode::new` and the consts are the only ways
-/// to get one. A raw `u16` would let `999` reach the wire.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct StatusCode(u16);
 
@@ -33,8 +29,6 @@ impl StatusCode {
         self.0
     }
 
-    /// 1xx, 204 and 304 responses never carry a body (RFC 9112 section 6.3
-    /// rule 1), so they are written without `Content-Length` too.
     pub fn allows_body(self) -> bool {
         !(self.0 < 200 || self.0 == 204 || self.0 == 304)
     }

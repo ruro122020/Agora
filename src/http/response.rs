@@ -30,9 +30,6 @@ impl Response {
             .body(body.into())
     }
 
-    /// CR and LF are replaced with spaces. If a handler copies request data
-    /// into a header, a line break in it would otherwise end the header early
-    /// and let the client write the rest of the response (response splitting).
     pub fn header(mut self, name: &str, value: &str) -> Response {
         let clean = |text: &str| text.replace(['\r', '\n'], " ");
         self.headers.push((clean(name), clean(value)));
@@ -52,11 +49,6 @@ impl Response {
         &self.body
     }
 
-    /// Serializes the response. `Content-Length` and `Connection` are framing,
-    /// owned by this function; a handler's copies of them are dropped.
-    ///
-    /// `head_only` answers a `HEAD` request: same headers, same
-    /// `Content-Length`, no body bytes.
     pub fn write_to<W: Write>(
         &self,
         writer: &mut W,
@@ -83,8 +75,6 @@ impl Response {
         if self.status.allows_body() && !head_only {
             wire.extend_from_slice(&self.body);
         }
-        // One buffer, one `write_all`: head and body leave in the same
-        // syscall instead of as two small TCP segments.
         writer.write_all(&wire)?;
         writer.flush()
     }

@@ -10,11 +10,6 @@ pub enum Version {
     Http11,
 }
 
-/// A request that has passed every check.
-///
-/// The fields are private and the `read` functions are the only constructors,
-/// so holding a `Request` is the proof that it is well-formed. Handlers never
-/// validate again.
 #[derive(Debug)]
 pub struct Request {
     method: Method,
@@ -32,15 +27,10 @@ impl Request {
         Ok(request)
     }
 
-    /// Reads the request line and headers, and decides the body framing.
-    /// The body itself is left in the reader; see `read_body`. The split
-    /// exists so the connection can answer `Expect: 100-continue` in between.
     pub fn read_head<R: BufRead>(
         reader: &mut R,
         limits: &ServerLimits,
     ) -> Result<Request, ServerError> {
-        // RFC 9112 section 2.2: tolerate one empty line before the request
-        // line, which some clients send after a previous body.
         let mut line = read_line(
             reader,
             limits.max_request_line,
@@ -97,7 +87,6 @@ impl Request {
         self.method
     }
 
-    /// The request target exactly as sent, query string included.
     pub fn target(&self) -> &str {
         &self.target
     }
@@ -133,16 +122,12 @@ impl Request {
         &self.body
     }
 
-    /// True when the client is holding the body back until it sees
-    /// `100 Continue`. Only HTTP/1.1 clients may ask (RFC 9110 section 10.1.1).
     pub fn expects_continue(&self) -> bool {
         self.version == Version::Http11
             && self.body_length != BodyLength::Empty
             && self.headers.has_token("expect", "100-continue")
     }
 
-    /// Whether the client wants the connection kept open after the response.
-    /// HTTP/1.1 defaults to yes, HTTP/1.0 to no (RFC 9112 section 9.3).
     pub fn keep_alive(&self) -> bool {
         if self.headers.has_token("connection", "close") {
             return false;
@@ -155,8 +140,6 @@ impl Request {
 }
 
 fn parse_request_line(line: &[u8]) -> Result<(Method, String, Version), ParseError> {
-    // Exactly one space between the parts. Splitting on the byte yields an
-    // extra empty part for every extra space, so the four-way match fails.
     let mut parts = line.split(|&b| b == b' ');
     let (Some(method), Some(target), Some(version), None) =
         (parts.next(), parts.next(), parts.next(), parts.next())
@@ -166,8 +149,6 @@ fn parse_request_line(line: &[u8]) -> Result<(Method, String, Version), ParseErr
 
     let method = Method::parse(method)?;
 
-    // Origin form only (`/path?query`). Visible ASCII only, which also makes
-    // the conversion to `String` unable to fail or replace anything.
     if target.first() != Some(&b'/') || !target.iter().all(|b| (0x21..=0x7e).contains(b)) {
         return Err(ParseError::InvalidTarget);
     }
@@ -182,12 +163,6 @@ fn parse_request_line(line: &[u8]) -> Result<(Method, String, Version), ParseErr
     Ok((method, target, version))
 }
 
-/// Reads one CRLF-terminated line of at most `max` bytes (CRLF included) and
-/// returns it without the CRLF.
-///
-/// `take(max)` is what makes the cap real: without it `read_until` would keep
-/// growing the `Vec` for as long as the client avoids sending a newline. Bytes
-/// after the newline stay in `reader` for whoever reads next.
 pub(crate) fn read_line<R: BufRead>(
     reader: &mut R,
     max: usize,

@@ -40,7 +40,6 @@ fn iris_page(method: &str, path: &str) -> Response {
 }
 
 fn fetch_api(method: &str, path: &str) -> io::Result<String> {
-    // Timeouts on all three waits, so a hung API cannot hold a worker forever.
     let mut stream = TcpStream::connect_timeout(&SocketAddr::from(API_ADDR), API_TIMEOUT)?;
     stream.set_read_timeout(Some(API_TIMEOUT))?;
     stream.set_write_timeout(Some(API_TIMEOUT))?;
